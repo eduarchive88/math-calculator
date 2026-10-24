@@ -1,0 +1,500 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>수학 계산기</title>
+<style>
+  :root {
+    --bg: #eef1f4;
+    --card: #ffffff;
+    --text: #1f2933;
+    --muted: #6b7785;
+    --line: #dde3e9;
+    --accent: #0f9d8f;
+    --accent-dark: #0b7c71;
+    --key: #f4f6f8;
+    --key-op: #e3f4f2;
+    --ok: #1e9e5a;
+    --bad: #d64545;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  }
+  header {
+    background: var(--accent);
+    color: #fff;
+    padding: 14px 16px;
+    text-align: center;
+    font-weight: 700;
+    font-size: 1.2rem;
+  }
+  main {
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 16px;
+    display: grid;
+    gap: 16px;
+  }
+  .card {
+    background: var(--card);
+    border-radius: 16px;
+    padding: 16px;
+    box-shadow: 0 2px 10px rgba(0,0,0,.06);
+  }
+  h2 { margin: 0 0 12px; font-size: 1.05rem; }
+
+  /* 계산기 */
+  .display {
+    background: #f8fafb;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 12px 14px;
+    text-align: right;
+    margin-bottom: 12px;
+    min-height: 88px;
+    overflow: hidden;
+  }
+  .expr { color: var(--muted); font-size: 1rem; min-height: 1.4em; word-break: break-all; }
+  .result { font-size: 2rem; font-weight: 700; word-break: break-all; }
+  .keys { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .keys button {
+    border: none;
+    border-radius: 12px;
+    background: var(--key);
+    font-size: 1.25rem;
+    padding: 14px 0;
+    cursor: pointer;
+    color: var(--text);
+    font-family: inherit;
+  }
+  .keys button:active { transform: scale(.96); }
+  .keys .op { background: var(--key-op); color: var(--accent-dark); font-weight: 700; }
+  .keys .fn { font-size: 1.05rem; color: var(--muted); }
+  .keys .eq { background: var(--accent); color: #fff; font-weight: 700; }
+  .keys .clear { color: var(--bad); font-weight: 700; }
+
+  /* 문제 풀기 */
+  .row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+  select, input[type=text] {
+    font-family: inherit;
+    font-size: 1rem;
+    padding: 10px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: #fff;
+    color: var(--text);
+  }
+  select { flex: 1; min-width: 120px; }
+  .problem {
+    background: #f8fafb;
+    border: 1px dashed var(--line);
+    border-radius: 12px;
+    padding: 18px 12px;
+    text-align: center;
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 10px;
+    word-break: keep-all;
+  }
+  .answer-row { display: flex; gap: 8px; }
+  .answer-row input { flex: 1; min-width: 0; font-size: 1.2rem; }
+  .btn {
+    border: none;
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 1rem;
+    font-family: inherit;
+    cursor: pointer;
+    background: var(--key);
+    color: var(--text);
+    white-space: nowrap;
+  }
+  .btn.primary { background: var(--accent); color: #fff; font-weight: 700; }
+  .actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px; }
+  .feedback { min-height: 1.6em; margin: 10px 0 0; text-align: center; font-weight: 700; }
+  .feedback.ok { color: var(--ok); }
+  .feedback.bad { color: var(--bad); }
+  .hint { color: var(--muted); text-align: center; font-size: .95rem; min-height: 1.2em; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 14px; }
+  .stat { background: #f8fafb; border-radius: 10px; padding: 8px; text-align: center; }
+  .stat b { display: block; font-size: 1.3rem; }
+  .stat span { color: var(--muted); font-size: .85rem; }
+  .log { list-style: none; padding: 0; margin: 12px 0 0; max-height: 180px; overflow-y: auto; font-size: .95rem; }
+  .log li { padding: 6px 4px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; gap: 8px; }
+  .log .o { color: var(--ok); }
+  .log .x { color: var(--bad); }
+  footer { text-align: center; color: var(--muted); font-size: .8rem; padding: 8px 0 24px; }
+</style>
+</head>
+<body>
+<header>🧮 수학 계산기</header>
+<main>
+  <section class="card" aria-label="계산기">
+    <div class="display">
+      <div class="expr" id="expr"></div>
+      <div class="result" id="result">0</div>
+    </div>
+    <div class="keys">
+      <button class="clear" data-k="C">C</button>
+      <button class="fn" data-k="(">(</button>
+      <button class="fn" data-k=")">)</button>
+      <button class="fn" data-k="back">⌫</button>
+
+      <button class="fn" data-k="√">√</button>
+      <button class="fn" data-k="^2">x²</button>
+      <button class="fn" data-k="^">xʸ</button>
+      <button class="op" data-k="÷">÷</button>
+
+      <button data-k="7">7</button>
+      <button data-k="8">8</button>
+      <button data-k="9">9</button>
+      <button class="op" data-k="×">×</button>
+
+      <button data-k="4">4</button>
+      <button data-k="5">5</button>
+      <button data-k="6">6</button>
+      <button class="op" data-k="−">−</button>
+
+      <button data-k="1">1</button>
+      <button data-k="2">2</button>
+      <button data-k="3">3</button>
+      <button class="op" data-k="+">+</button>
+
+      <button class="fn" data-k="%">%</button>
+      <button data-k="0">0</button>
+      <button data-k=".">.</button>
+      <button class="eq" data-k="=">=</button>
+    </div>
+  </section>
+
+  <section class="card" aria-label="수학 문제 풀기">
+    <h2>✏️ 수학 문제 풀기</h2>
+    <div class="row">
+      <select id="type" aria-label="문제 유형">
+        <option value="add">덧셈</option>
+        <option value="sub">뺄셈</option>
+        <option value="mul">곱셈</option>
+        <option value="div">나눗셈</option>
+        <option value="mix">혼합 계산</option>
+        <option value="pow">거듭제곱·제곱근</option>
+        <option value="pct">백분율</option>
+        <option value="eq">일차방정식</option>
+        <option value="random">무작위</option>
+      </select>
+      <select id="level" aria-label="난이도">
+        <option value="1">쉬움</option>
+        <option value="2" selected>보통</option>
+        <option value="3">어려움</option>
+      </select>
+    </div>
+    <div class="problem" id="problem">문제를 불러오는 중…</div>
+    <div class="answer-row">
+      <input type="text" id="answer" inputmode="decimal" placeholder="답을 입력하세요" autocomplete="off">
+      <button class="btn primary" id="check">확인</button>
+    </div>
+    <div class="actions">
+      <button class="btn" id="useCalc">계산기 값 넣기</button>
+      <button class="btn" id="showHint">힌트</button>
+      <button class="btn" id="next">다음 문제</button>
+    </div>
+    <p class="feedback" id="feedback"></p>
+    <p class="hint" id="hint"></p>
+    <div class="stats">
+      <div class="stat"><b id="sSolved">0</b><span>푼 문제</span></div>
+      <div class="stat"><b id="sCorrect">0</b><span>맞힌 문제</span></div>
+      <div class="stat"><b id="sStreak">0</b><span>연속 정답</span></div>
+    </div>
+    <ul class="log" id="log"></ul>
+  </section>
+  <footer>키보드로도 계산할 수 있어요 (숫자, + - * / ^ ( ), Enter, Backspace, Esc)</footer>
+</main>
+
+<script>
+// ---------- 계산식 해석 (eval 없이) ----------
+function tokenize(s) {
+  const tokens = [];
+  let i = 0;
+  while (i < s.length) {
+    const c = s[i];
+    if (/[0-9.]/.test(c)) {
+      let n = '';
+      while (i < s.length && /[0-9.]/.test(s[i])) n += s[i++];
+      if ((n.match(/\./g) || []).length > 1) throw new Error('숫자 오류');
+      tokens.push({ t: 'num', v: parseFloat(n) });
+      continue;
+    }
+    if ('+−×÷^()√%'.includes(c)) tokens.push({ t: c });
+    else if (c === '-') tokens.push({ t: '−' });
+    else if (c === '*') tokens.push({ t: '×' });
+    else if (c === '/') tokens.push({ t: '÷' });
+    else if (c !== ' ') throw new Error('알 수 없는 기호');
+    i++;
+  }
+  return tokens;
+}
+
+function evaluate(s) {
+  const tk = tokenize(s);
+  let p = 0;
+  const peek = () => tk[p] && tk[p].t;
+  const startsPrimary = t => t === 'num' || t === '(' || t === '√';
+
+  function expr() {
+    let v = term();
+    while (peek() === '+' || peek() === '−') {
+      const op = tk[p++].t;
+      const r = term();
+      v = op === '+' ? v + r : v - r;
+    }
+    return v;
+  }
+  function term() {
+    let v = unary();
+    while (true) {
+      if (peek() === '×' || peek() === '÷') {
+        const op = tk[p++].t;
+        const r = unary();
+        if (op === '÷' && r === 0) throw new Error('0으로 나눌 수 없어요');
+        v = op === '×' ? v * r : v / r;
+      } else if (startsPrimary(peek())) {
+        v *= unary(); // 2(3+1), 2√9 같은 생략된 곱셈
+      } else break;
+    }
+    return v;
+  }
+  function unary() {
+    if (peek() === '−') { p++; return -unary(); }
+    if (peek() === '+') { p++; return unary(); }
+    return power();
+  }
+  function power() {
+    const base = postfix();
+    if (peek() === '^') { p++; return Math.pow(base, unary()); }
+    return base;
+  }
+  function postfix() {
+    let v = primary();
+    while (peek() === '%') { p++; v /= 100; }
+    return v;
+  }
+  function primary() {
+    const t = tk[p++];
+    if (!t) throw new Error('식이 완성되지 않았어요');
+    if (t.t === 'num') return t.v;
+    if (t.t === '(') {
+      const v = expr();
+      if (peek() !== ')') throw new Error('괄호를 닫아 주세요');
+      p++;
+      return v;
+    }
+    if (t.t === '√') {
+      const v = postfix();
+      if (v < 0) throw new Error('음수의 제곱근은 없어요');
+      return Math.sqrt(v);
+    }
+    throw new Error('식을 확인해 주세요');
+  }
+
+  const v = expr();
+  if (p < tk.length) throw new Error('식을 확인해 주세요');
+  if (!isFinite(v)) throw new Error('계산할 수 없어요');
+  return parseFloat(v.toPrecision(12));
+}
+
+// ---------- 계산기 화면 ----------
+const exprEl = document.getElementById('expr');
+const resultEl = document.getElementById('result');
+let input = '';
+let lastResult = null;
+let justEvaluated = false;
+
+function render() {
+  resultEl.textContent = input || '0';
+}
+
+function press(k) {
+  if (k === 'C') {
+    input = ''; exprEl.textContent = ''; justEvaluated = false;
+  } else if (k === 'back') {
+    input = input.slice(0, -1);
+  } else if (k === '=') {
+    if (!input) return;
+    try {
+      const v = evaluate(input);
+      exprEl.textContent = input + ' =';
+      input = String(v);
+      lastResult = v;
+      justEvaluated = true;
+    } catch (e) {
+      exprEl.textContent = e.message;
+    }
+    render();
+    return;
+  } else {
+    // 결과 직후 숫자를 누르면 새 계산, 연산자를 누르면 이어서 계산
+    if (justEvaluated && /^[0-9.(√]$/.test(k)) input = '';
+    input += k;
+  }
+  justEvaluated = false;
+  render();
+}
+
+document.querySelectorAll('.keys button').forEach(b =>
+  b.addEventListener('click', () => press(b.dataset.k)));
+
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+  const map = { '*': '×', '/': '÷', '-': '−', 'Enter': '=', '=': '=', 'Backspace': 'back', 'Escape': 'C' };
+  const k = map[e.key] || e.key;
+  if (/^[0-9.+()^%]$/.test(k) || ['×', '÷', '−', '=', 'back', 'C'].includes(k)) {
+    e.preventDefault();
+    press(k);
+  }
+});
+
+// ---------- 문제 만들기 ----------
+const rand = (a, b) => Math.floor(Math.random() * (b - a + 1)) + a;
+const pick = arr => arr[rand(0, arr.length - 1)];
+const RANGE = { 1: 10, 2: 100, 3: 1000 };
+
+const generators = {
+  add(l) {
+    const a = rand(1, RANGE[l]), b = rand(1, RANGE[l]);
+    return { q: `${a} + ${b}`, a: a + b, hint: '일의 자리부터 차례로 더해 보세요.' };
+  },
+  sub(l) {
+    let a = rand(1, RANGE[l]), b = rand(1, RANGE[l]);
+    if (l < 3 && b > a) [a, b] = [b, a];
+    return { q: `${a} − ${b}`, a: a - b, hint: l === 3 ? '빼는 수가 더 크면 답은 음수예요.' : '받아내림에 주의하세요.' };
+  },
+  mul(l) {
+    const max = [0, 9, 20, 99][l];
+    const a = rand(2, max), b = rand(2, l === 1 ? 9 : max);
+    return { q: `${a} × ${b}`, a: a * b, hint: '한 수를 쪼개서 곱한 뒤 더해 보세요. 예: 12×5 = 10×5 + 2×5' };
+  },
+  div(l) {
+    const max = [0, 9, 20, 50][l];
+    const b = rand(2, max), ans = rand(2, max);
+    return { q: `${b * ans} ÷ ${b}`, a: ans, hint: `${b} × □ = ${b * ans} 에서 □를 찾아보세요.` };
+  },
+  mix(l) {
+    const m = [0, 9, 20, 50][l];
+    const a = rand(1, m), b = rand(1, m), c = rand(2, l === 1 ? 5 : 12);
+    const forms = [
+      { q: `${a} + ${b} × ${c}`, a: a + b * c },
+      { q: `(${a} + ${b}) × ${c}`, a: (a + b) * c },
+      { q: `${a * c} ÷ ${c} + ${b}`, a: a + b },
+      { q: `${a} × ${c} − ${b}`, a: a * c - b },
+    ];
+    return { ...pick(forms), hint: '괄호 → 곱셈·나눗셈 → 덧셈·뺄셈 순서로 계산해요.' };
+  },
+  pow(l) {
+    if (Math.random() < 0.5) {
+      const base = rand(2, [0, 9, 15, 30][l]);
+      const exp = l === 1 ? 2 : rand(2, 3);
+      return { q: `${base}${exp === 2 ? '²' : '³'}`, a: Math.pow(base, exp), hint: `${base}를 ${exp}번 곱해요.` };
+    }
+    const r = rand(2, [0, 10, 20, 40][l]);
+    return { q: `√${r * r}`, a: r, hint: `어떤 수를 두 번 곱하면 ${r * r}이 될까요?` };
+  },
+  pct(l) {
+    const pcts = l === 1 ? [10, 20, 25, 50] : l === 2 ? [5, 10, 15, 20, 25, 30, 40, 75] : [12, 15, 35, 45, 60, 65, 85];
+    const p = pick(pcts);
+    const base = rand(1, [0, 10, 20, 50][l]) * 20;
+    return { q: `${base}의 ${p}%`, a: base * p / 100, hint: `${base} × ${p} ÷ 100 으로 구해요.` };
+  },
+  eq(l) {
+    const m = [0, 5, 10, 20][l];
+    const x = rand(-m, m) || 1;
+    const a = l === 1 ? 1 : rand(2, m < 9 ? m : 9) * (l === 3 && Math.random() < .5 ? -1 : 1);
+    const b = rand(-m * 2, m * 2);
+    const c = a * x + b;
+    const left = `${a === 1 ? '' : a === -1 ? '−' : a}x` + (b === 0 ? '' : b > 0 ? ` + ${b}` : ` − ${-b}`);
+    return { q: `${left} = ${c}<br><small>x의 값은?</small>`, a: x, hint: (b === 0 ? '' : b > 0 ? `양변에서 ${b}를 빼고` : `양변에 ${-b}를 더하고`) + (a === 1 ? (b === 0 ? 'x가 이미 혼자 있어요.' : ' x만 남겨 보세요.') : `${b === 0 ? '' : ', '}양변을 ${a}로 나눠 보세요.`) };
+  },
+};
+
+// ---------- 문제 풀기 화면 ----------
+const $ = id => document.getElementById(id);
+let current = null;
+let answered = false;
+const stats = { solved: 0, correct: 0, streak: 0 };
+
+function newProblem() {
+  let type = $('type').value;
+  if (type === 'random') type = pick(Object.keys(generators));
+  current = generators[type](Number($('level').value));
+  answered = false;
+  $('problem').innerHTML = current.q;
+  $('answer').value = '';
+  $('feedback').textContent = '';
+  $('feedback').className = 'feedback';
+  $('hint').textContent = '';
+}
+
+function parseAnswer(s) {
+  s = s.trim().replace(/,/g, '');
+  if (!s) return null;
+  try { return evaluate(s); } catch { return null; }
+}
+
+function check() {
+  if (!current) return;
+  const v = parseAnswer($('answer').value);
+  if (v === null) {
+    $('feedback').textContent = '숫자로 답을 입력해 주세요.';
+    $('feedback').className = 'feedback bad';
+    return;
+  }
+  const ok = Math.abs(v - current.a) < 1e-9;
+  if (!answered) {
+    stats.solved++;
+    if (ok) { stats.correct++; stats.streak++; } else stats.streak = 0;
+    addLog(current.q.replace(/<br>.*$/, ''), v, ok);
+    answered = true;
+  }
+  if (ok) {
+    $('feedback').textContent = stats.streak >= 3 ? `🎉 정답! ${stats.streak}문제 연속 정답!` : '🎉 정답이에요!';
+    $('feedback').className = 'feedback ok';
+    setTimeout(newProblem, 1200);
+  } else {
+    $('feedback').textContent = `아쉬워요. 정답은 ${current.a} 이에요.`;
+    $('feedback').className = 'feedback bad';
+  }
+  updateStats();
+}
+
+function addLog(q, v, ok) {
+  const li = document.createElement('li');
+  li.innerHTML = `<span>${q} = ${v}</span><span class="${ok ? 'o' : 'x'}">${ok ? '⭕' : '❌ ' + current.a}</span>`;
+  $('log').prepend(li);
+}
+
+function updateStats() {
+  $('sSolved').textContent = stats.solved;
+  $('sCorrect').textContent = stats.correct;
+  $('sStreak').textContent = stats.streak;
+}
+
+$('check').addEventListener('click', check);
+$('answer').addEventListener('keydown', e => { if (e.key === 'Enter') check(); });
+$('next').addEventListener('click', newProblem);
+$('showHint').addEventListener('click', () => { if (current) $('hint').textContent = '💡 ' + current.hint; });
+$('useCalc').addEventListener('click', () => {
+  const v = lastResult !== null ? lastResult : input;
+  if (v === '' || v === null) return;
+  $('answer').value = v;
+  $('answer').focus();
+});
+$('type').addEventListener('change', newProblem);
+$('level').addEventListener('change', newProblem);
+
+newProblem();
+</script>
+</body>
+</html>
